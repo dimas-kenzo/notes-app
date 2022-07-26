@@ -1,88 +1,62 @@
-const APIURL = 'https://api.github.com/users/'
+const addBtn = document.getElementById('add')
 
-const main = document.getElementById('main')
-const form = document.getElementById('form')
-const search = document.getElementById('search')
+const notes = JSON.parse(localStorage.getItem('notes'))
 
-async function getUser(username) {
-    try {
-        const { data } = await axios(APIURL + username)
-
-        createUserCard(data)
-        getRepos(username)
-    } catch(err) {
-        if(err.response.status == 404) {
-            createErrorCard('No profile with this username')
-        }
-    }
+if(notes) {
+    notes.forEach(note => addNewNote(note))
 }
 
-async function getRepos(username) {
-    try {
-        const { data } = await axios(APIURL + username + '/repos?sort=created')
+addBtn.addEventListener('click', () => addNewNote())
 
-        addReposToCard(data)
-    } catch(err) {
-        createErrorCard('Problem fetching repos')
-    }
-}
+function addNewNote(text = '') {
+    const note = document.createElement('div')
+    note.classList.add('note')
 
-function createUserCard(user) {
-    const cardHTML = `
-    <div class="card">
-    <div>
-      <img src="${user.avatar_url}" alt="${user.name}" class="avatar">
+    note.innerHTML = `
+    <div class="tools">
+        <button class="edit"><i class="fas fa-edit"></i></button>
+        <button class="delete"><i class="fas fa-trash-alt"></i></button>
     </div>
-    <div class="user-info">
-      <h2>${user.name}</h2>
-      <p>${user.bio}</p>
-      <ul>
-        <li>${user.followers} <strong>Followers</strong></li>
-        <li>${user.following} <strong>Following</strong></li>
-        <li>${user.public_repos} <strong>Repos</strong></li>
-      </ul>
-      <div id="repos"></div>
-    </div>
-  </div>
-    `
-    main.innerHTML = cardHTML
-    
-}
-
-function createErrorCard(msg) {
-    const cardHTML = `
-        <div class="card">
-            <h1>${msg}</h1>
-        </div>
+    <div class="main ${text ? "" : "hidden"}"></div>
+    <textarea class="${text ? "hidden" : ""}"></textarea>
     `
 
-    main.innerHTML = cardHTML
+    const editBtn = note.querySelector('.edit')
+    const deleteBtn = note.querySelector('.delete')
+    const main = note.querySelector('.main')
+    const textArea = note.querySelector('textarea')
+
+    textArea.value = text
+    main.innerHTML = marked(text)
+
+    deleteBtn.addEventListener('click', () => {
+        note.remove()
+
+        updateLS()
+    })
+
+    editBtn.addEventListener('click', () => {
+        main.classList.toggle('hidden')
+        textArea.classList.toggle('hidden')
+    })
+
+    textArea.addEventListener('input', (e) => {
+        const { value } = e.target
+
+        main.innerHTML = marked(value)
+
+        updateLS()
+    })
+
+    document.body.appendChild(note)
 }
 
-function addReposToCard(repos) {
-    const reposEl = document.getElementById('repos')
+function updateLS() {
+    const notesText = document.querySelectorAll('textarea')
 
-    repos
-        .slice(0, 5)
-        .forEach(repo => {
-            const repoEl = document.createElement('a')
-            repoEl.classList.add('repo')
-            repoEl.href = repo.html_url
-            repoEl.target = '_blank'
-            repoEl.innerText = repo.name
+    const notes = []
 
-            reposEl.appendChild(repoEl)
-        })
+    notesText.forEach(note => notes.push(note.value))
+
+    localStorage.setItem('notes', JSON.stringify(notes))
 }
-
-form.addEventListener('submit', (e) => {
-    e.preventDefault()
-
-    const user = search.value
-
-    if(user) {
-        getUser(user)
-
-        search.value = ''
-    }
-})
